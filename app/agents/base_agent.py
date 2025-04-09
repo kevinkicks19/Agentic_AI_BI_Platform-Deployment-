@@ -1,9 +1,9 @@
 from typing import List, Dict, Any
-import autogen
-from app.config.settings import settings
+import litellm
 import logging
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+import os
+import json
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -14,80 +14,100 @@ class BaseAgent:
         logger.info(f"Initializing {name} agent")
         self.name = name
         self.system_message = system_message
-        self.agent = autogen.AssistantAgent(
-            name=name,
-            system_message=system_message,
-            llm_config={
-                "config_list": [
-                    {
-                        "model": "llama2:latest",
-                        "api_type": "ollama"
-                    }
-                ],
-                "timeout": 60  # Add timeout
-            },
-            code_execution_config={"use_docker": False}
-        )
-        self.executor = ThreadPoolExecutor(max_workers=1)
+        self.model = os.getenv("DEFAULT_MODEL", "ollama/llama2")
+        
+        # Create logs directory if it doesn't exist
+        self.logs_dir = "logs"
+        if not os.path.exists(self.logs_dir):
+            os.makedirs(self.logs_dir)
+            logger.info(f"Created logs directory at {os.path.abspath(self.logs_dir)}")
+        
+        # Configure LiteLLM
+        litellm.set_verbose = True
+        litellm.success_callback = ["langfuse"]
+        litellm.failure_callback = ["langfuse"]
     
-    async def process_message(self, message: str, sender: Any) -> Dict[str, Any]:
+    def _log_conversation(self, message: str, response: Dict[str, Any], is_error: bool = False):
+        """Log conversation to a text file."""
+        try:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"{self.logs_dir}/{self.name}_{timestamp}.txt"
+            logger.info(f"Logging conversation to {filename}")
+            
+            with open(filename, "w", encoding="utf-8") as f:
+                f.write(f"=== Conversation Log for {self.name} ===\n\n")
+                f.write(f"Timestamp: {datetime.now().isoformat()}\n\n")
+                f.write("=== System Message ===\n")
+                f.write(f"{self.system_message}\n\n")
+                f.write("=== Input Message ===\n")
+                f.write(f"{message}\n\n")
+                
+                if is_error:
+                    f.write("=== Error ===\n")
+                    f.write(f"{response.get('content', 'Unknown error')}\n")
+                else:
+                    f.write("=== Response ===\n")
+                    f.write(f"{response.get('content', 'No response')}\n\n")
+                    f.write("=== Metadata ===\n")
+                    for key, value in response.get('metadata', {}).items():
+                        f.write(f"{key}: {value}\n")
+            
+            logger.info(f"Successfully logged conversation to {filename}")
+        except Exception as e:
+            logger.error(f"Failed to log conversation: {str(e)}")
+    
+    async def process_message(self, message: str, sender: Any = None) -> Dict[str, Any]:
         """
-        Process a message and return a response with metadata
+        Process a message and return a response with metadata using LiteLLM
         """
         try:
             logger.info(f"{self.name} processing message: {message}")
             
-            # Initialize chat
-            chat_initiator = autogen.UserProxyAgent(
-                name="user",
-                human_input_mode="NEVER",
-                max_consecutive_auto_reply=1,  # Limit to one response
-                code_execution_config={"use_docker": False}
+            # Prepare messages for LiteLLM
+            messages = [
+                {"role": "system", "content": self.system_message},
+                {"role": "user", "content": message}
+            ]
+            
+            # Make request using LiteLLM
+            response = litellm.completion(
+                model=self.model,
+                messages=messages,
+                temperature=0.7,
+                top_p=0.9,
+                max_tokens=4096,
+                stop=["</s>", "[/INST]", "[INST]"]
             )
             
-            # Run chat in thread pool
-            logger.info("Starting chat interaction in thread pool")
-            loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(
-                self.executor,
-                lambda: chat_initiator.initiate_chat(
-                    self.agent,
-                    message=message,
-                    sender=sender
-                )
-            )
+            # Extract content from response
+            content = response.choices[0].message.content.strip()
             
-            # Get response
-            last_message = chat_initiator.last_message()
-            logger.info(f"Got response: {last_message}")
-            
-            # Extract the actual response content
-            content = last_message.get("content", "No response content")
-            if isinstance(content, str):
-                # Clean up the response if needed
-                content = content.strip()
-                # Remove any [INST] tags
-                content = content.split('[INST')[0].strip()
-                # Remove any control characters
-                content = ''.join(char for char in content if ord(char) >= 32 or char in '\n\r\t')
-            
-            return {
+            # Create response object
+            result = {
                 "status": "success",
                 "content": content,
-                "role": last_message.get("role", "assistant"),
+                "role": "assistant",
                 "metadata": {
-                    "timestamp": last_message.get("timestamp", None),
-                    "type": last_message.get("type", "message")
+                    "model": self.model,
+                    "response_time": response._response_ms,
+                    "prompt_tokens": response.usage.prompt_tokens,
+                    "completion_tokens": response.usage.completion_tokens,
+                    "total_tokens": response.usage.total_tokens
                 }
             }
             
+            # Log the conversation
+            self._log_conversation(message, result)
+            
+            return result
+            
         except Exception as e:
-            logger.error(f"Error in process_message: {str(e)}")
-            return {
+            logger.error(f"Error processing message: {str(e)}")
+            error_response = {
                 "status": "error",
-                "content": f"Error processing message: {str(e)}",
+                "content": str(e),
                 "role": "system",
-                "metadata": {
-                    "error": str(e)
-                }
-            } 
+                "metadata": {"error": str(e)}
+            }
+            self._log_conversation(message, error_response, is_error=True)
+            return error_response 

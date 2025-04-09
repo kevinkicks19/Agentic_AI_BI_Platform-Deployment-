@@ -1,8 +1,11 @@
 from typing import Dict, Any, Optional, List
 from abc import ABC, abstractmethod
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
+from pydantic import BaseModel
 
+# Set up logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class BaseWorkflow(ABC):
@@ -19,7 +22,7 @@ class BaseWorkflow(ABC):
         self.workflow_id = workflow_id
         self.name = name
         self.description = description
-        self.created_at = datetime.utcnow()
+        self.created_at = datetime.now(timezone.utc)
         self.status = "initialized"
         self.steps: List[Dict[str, Any]] = []
         self.current_step = 0
@@ -89,9 +92,9 @@ class BaseWorkflow(ABC):
         if 0 <= step_id < len(self.steps):
             self.steps[step_id]["status"] = status
             if status == "running":
-                self.steps[step_id]["started_at"] = datetime.utcnow()
+                self.steps[step_id]["started_at"] = datetime.now(timezone.utc)
             elif status in ["completed", "failed"]:
-                self.steps[step_id]["completed_at"] = datetime.utcnow()
+                self.steps[step_id]["completed_at"] = datetime.now(timezone.utc)
             if results:
                 self.steps[step_id]["results"] = results
     
@@ -133,7 +136,7 @@ class BaseWorkflow(ABC):
         error_info = {
             "error_type": type(error).__name__,
             "error_message": str(error),
-            "timestamp": datetime.utcnow()
+            "timestamp": datetime.now(timezone.utc)
         }
         
         if step_id is not None:

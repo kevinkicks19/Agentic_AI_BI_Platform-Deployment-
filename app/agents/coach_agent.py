@@ -41,6 +41,10 @@ class CoachAgent(BaseAgent):
         ]
         self.current_topic_index = 0
     
+    def is_conversation_complete(self) -> bool:
+        """Check if the conversation has covered all required topics."""
+        return self.current_topic_index >= len(self.topics_to_cover)
+    
     async def conduct_discovery_conversation(self, conversation_state: Dict[str, Any]) -> Dict[str, Any]:
         """Conduct a complete discovery conversation to understand the business problem.
         
@@ -48,9 +52,6 @@ class CoachAgent(BaseAgent):
             conversation_state: Dictionary containing:
                 - query: Initial problem description
                 - context: Additional context information
-                - topics_covered: List of topics already covered
-                - questions_asked: List of questions already asked
-                - key_insights: List of key insights gathered
         
         Returns:
             Dict[str, Any]: Results of the discovery conversation
@@ -86,7 +87,7 @@ class CoachAgent(BaseAgent):
             ],
             "metadata": {
                 "total_exchanges": len(self.conversation_history),
-                "completion_status": "completed" if self.current_topic_index >= len(self.topics_to_cover) else "in_progress",
+                "completion_status": "completed" if self.is_conversation_complete() else "in_progress",
                 "context_used": context
             }
         }
@@ -142,40 +143,21 @@ class CoachAgent(BaseAgent):
             self.current_topic_index += 1
         
         # If we've covered all topics, prepare for summary
-        if self.current_topic_index >= len(self.topics_to_cover):
+        if self.is_conversation_complete():
             prompt = f"""
             Based on the conversation history:
             {self.conversation_history}
             
             Please provide a summary of the problem and ask for confirmation.
-            Make sure to highlight the key points we've discussed.
-            Format your response as a JSON object with:
-            1. summary: A concise summary of the problem
-            2. key_points: List of key points discussed
-            3. confirmation_question: A question to confirm understanding
             """
         else:
-            # Get the next topic to cover
-            next_topic = self.topics_to_cover[self.current_topic_index]
-            topic_prompts = {
-                "specific_challenge": "Ask ONE focused question about the specific challenge they're facing.",
-                "context_background": "Ask ONE focused question about the context and background of the situation.",
-                "goals_outcomes": "Ask ONE focused question about their goals and desired outcomes.",
-                "constraints_limitations": "Ask ONE focused question about any constraints or limitations.",
-                "stakeholders": "Ask ONE focused question about key stakeholders involved.",
-                "urgency_timeline": "Ask ONE focused question about the urgency and timeline.",
-                "requirements": "Ask ONE focused question about any specific requirements."
-            }
-            
+            # Ask the next question
             prompt = f"""
-            User's response: {user_response}
+            Based on the conversation history:
+            {self.conversation_history}
             
-            {topic_prompts[next_topic]}
-            Make your question specific and focused on this aspect.
-            Format your response as a JSON object with:
-            1. question: Your focused question
-            2. topic: The current topic being discussed
-            3. insights: Key insights from the user's last response
+            Please ask ONE focused question about {self.topics_to_cover[self.current_topic_index]}.
+            Make your question clear and specific.
             """
         
         response = await self.process_message(prompt, None)
@@ -185,8 +167,8 @@ class CoachAgent(BaseAgent):
             "role": "assistant",
             "content": response["content"],
             "metadata": {
-                "topic": self.topics_to_cover[min(self.current_topic_index, len(self.topics_to_cover) - 1)],
-                "type": "question" if self.current_topic_index < len(self.topics_to_cover) else "summary"
+                "topic": self.topics_to_cover[self.current_topic_index],
+                "type": "question" if not self.is_conversation_complete() else "summary"
             }
         })
         
@@ -201,54 +183,30 @@ class CoachAgent(BaseAgent):
         {self.conversation_history}
         
         Please prepare a structured summary of the problem that includes:
-        1. Problem Description
-        2. Context and Background
-        3. Goals and Desired Outcomes
-        4. Constraints and Limitations
-        5. Key Stakeholders
-        6. Urgency and Timeline
-        7. Any Specific Requirements
+        1. Problem Statement
+        2. Key Challenges
+        3. Business Impact
+        4. Stakeholders
+        5. Constraints
+        6. Desired Outcomes
         
-        Format this as a JSON object with these keys.
-        Ensure each section is detailed and actionable.
-        Include specific metrics and data points mentioned in the conversation.
+        Format the summary as a JSON object with these fields.
         """
         
         response = await self.process_message(prompt, None)
         
         try:
             # Try to parse the response as JSON
-            if isinstance(response, dict):
-                summary = response.get("content", "{}")
-            else:
-                summary = response
-                
-            if isinstance(summary, str):
-                summary = json.loads(summary)
-            
-            # Structure the summary
-            self.problem_summary = {
-                "problem_description": summary.get("problem_description", ""),
-                "context_background": summary.get("context_background", ""),
-                "goals_outcomes": summary.get("goals_outcomes", ""),
-                "constraints_limitations": summary.get("constraints_limitations", ""),
-                "stakeholders": summary.get("stakeholders", ""),
-                "urgency_timeline": summary.get("urgency_timeline", ""),
-                "requirements": summary.get("requirements", ""),
-                "metadata": {
-                    "conversation_length": len(self.conversation_history),
-                    "topics_covered": self.topics_to_cover[:self.current_topic_index],
-                    "completion_status": "completed" if self.current_topic_index >= len(self.topics_to_cover) else "in_progress"
-                }
-            }
+            summary = json.loads(response["content"])
         except json.JSONDecodeError:
-            # If JSON parsing fails, structure the raw response
-            self.problem_summary = {
-                "problem_description": str(response),
-                "metadata": {
-                    "parsing_error": True,
-                    "raw_response": response
-                }
+            # If parsing fails, create a basic structure
+            summary = {
+                "problem_statement": response["content"],
+                "key_challenges": [],
+                "business_impact": "",
+                "stakeholders": [],
+                "constraints": [],
+                "desired_outcomes": []
             }
         
-        return self.problem_summary 
+        return summary 
