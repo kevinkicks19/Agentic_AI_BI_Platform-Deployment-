@@ -66,7 +66,7 @@ class RouterAgent(BaseAgent):
         
         super().__init__("Problem_Router", system_message)
     
-    async def analyze_problem(self, problem_summary: Dict[str, Any]) -> Dict[str, Any]:
+    def analyze_problem(self, problem_summary: Dict[str, Any]) -> Dict[str, Any]:
         """Perform detailed analysis of the problem using business frameworks."""
         prompt = f"""
         Based on the following problem summary:
@@ -88,7 +88,7 @@ class RouterAgent(BaseAgent):
         Include a "key_findings" section summarizing the most important insights.
         """
         
-        response = await self.process_message(prompt, None)
+        response = self.process_message(prompt, None)
         
         try:
             # Try to parse the response as JSON
@@ -132,10 +132,10 @@ class RouterAgent(BaseAgent):
         
         return analysis
     
-    async def create_solution_plan(self, problem_summary: Dict[str, Any]) -> Dict[str, Any]:
+    def create_solution_plan(self, problem_summary: Dict[str, Any]) -> Dict[str, Any]:
         """Create a comprehensive solution plan based on problem analysis."""
         # First, perform detailed problem analysis
-        problem_analysis = await self.analyze_problem(problem_summary)
+        problem_analysis = self.analyze_problem(problem_summary)
         
         # Then, create solution plan
         prompt = f"""
@@ -184,7 +184,7 @@ class RouterAgent(BaseAgent):
         Include specific, measurable metrics and timelines wherever possible.
         """
         
-        response = await self.process_message(prompt, None)
+        response = self.process_message(prompt, None)
         
         try:
             # Try to parse the response as JSON
@@ -204,7 +204,7 @@ class RouterAgent(BaseAgent):
                 },
                 "implementation_plan": {
                     "phases": [],
-                    "timeline": {},
+                    "timeline": [],
                     "dependencies": []
                 },
                 "risk_management": {
@@ -214,13 +214,12 @@ class RouterAgent(BaseAgent):
                 },
                 "resource_optimization": {
                     "allocation_strategy": "",
-                    "parallel_activities": [],
                     "efficiency_opportunities": []
                 },
                 "success_metrics": {
                     "kpis": [],
                     "measurement_methodology": "",
-                    "targets": {}
+                    "target_values": {}
                 },
                 "monitoring_and_adjustment": {
                     "tracking_approach": "",
@@ -229,78 +228,69 @@ class RouterAgent(BaseAgent):
                 }
             }
         
-        # Structure the complete solution package
-        solution_plan = {
-            "problem_summary": problem_summary,
-            "problem_analysis": problem_analysis,
-            "solution_plan": plan,
-            "metadata": {
-                "generated_at": datetime.now().isoformat(),
-                "version": "1.0",
-                "status": "draft"
-            }
-        }
-        
-        return solution_plan
+        return plan
     
-    async def validate_plan(self, solution_plan: Dict[str, Any]) -> bool:
+    def validate_plan(self, solution_plan: Dict[str, Any]) -> bool:
         """Validate the solution plan for completeness and feasibility."""
-        prompt = f"""
-        Please validate the following solution plan:
-        {solution_plan}
+        required_sections = [
+            "solution_strategy",
+            "required_resources",
+            "implementation_plan",
+            "risk_management",
+            "resource_optimization",
+            "success_metrics",
+            "monitoring_and_adjustment"
+        ]
         
-        Check for:
-        1. Completeness of all required sections
-        2. Logical consistency between sections
-        3. Feasibility of proposed solutions
-        4. Adequacy of risk management
-        5. Realism of timelines and resource requirements
-        6. Clarity of success metrics
+        # Check for required sections
+        for section in required_sections:
+            if section not in solution_plan:
+                return False
         
-        Return a JSON object with:
-        - "is_valid": boolean indicating overall validity
-        - "validation_points": list of specific validation checks
-        - "issues_found": list of any issues identified
-        - "recommendations": list of improvement suggestions
-        """
+        # Check for critical subsections
+        if not all(key in solution_plan["implementation_plan"] for key in ["phases", "timeline", "dependencies"]):
+            return False
         
-        response = await self.process_message(prompt, None)
+        if not all(key in solution_plan["success_metrics"] for key in ["kpis", "measurement_methodology", "target_values"]):
+            return False
         
-        try:
-            # Try to parse the response as JSON
-            validation_result = json.loads(response["content"])
-            return validation_result.get("is_valid", False)
-        except json.JSONDecodeError:
-            # If parsing fails, assume the plan is valid
-            return True
+        return True
     
-    async def optimize_plan(self, solution_plan: Dict[str, Any]) -> Dict[str, Any]:
+    def optimize_plan(self, solution_plan: Dict[str, Any]) -> Dict[str, Any]:
         """Optimize the solution plan for efficiency and effectiveness."""
         prompt = f"""
-        Please optimize the following solution plan:
+        Please analyze and optimize this solution plan:
         {solution_plan}
         
         Focus on:
-        1. Resource efficiency
+        1. Resource utilization efficiency
         2. Timeline optimization
-        3. Risk reduction
-        4. Cost effectiveness
-        5. Implementation simplicity
-        6. Scalability and flexibility
+        3. Risk mitigation effectiveness
+        4. Cost-benefit balance
+        5. Implementation feasibility
         
-        Return a JSON object with:
-        - "optimized_plan": the optimized version of the solution plan
-        - "optimization_changes": list of specific changes made
-        - "expected_improvements": list of expected benefits
-        - "potential_risks": list of any new risks introduced
+        Suggest specific improvements in each area.
+        Format the response as a JSON object with optimization recommendations.
         """
         
-        response = await self.process_message(prompt, None)
+        response = self.process_message(prompt, None)
         
         try:
             # Try to parse the response as JSON
-            optimization_result = json.loads(response["content"])
-            return optimization_result.get("optimized_plan", solution_plan)
+            optimizations = json.loads(response["content"])
+            
+            # Apply optimizations to the plan
+            for section, improvements in optimizations.items():
+                if section in solution_plan:
+                    if isinstance(improvements, dict):
+                        solution_plan[section].update(improvements)
+                    elif isinstance(improvements, list):
+                        if isinstance(solution_plan[section], list):
+                            solution_plan[section].extend(improvements)
+                        else:
+                            solution_plan[section] = improvements
         except json.JSONDecodeError:
-            # If parsing fails, return the original plan
-            return solution_plan 
+            # If parsing fails, add optimization notes
+            solution_plan["optimization_notes"] = response["content"]
+        
+        return solution_plan 

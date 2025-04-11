@@ -45,7 +45,7 @@ class CoachAgent(BaseAgent):
         """Check if the conversation has covered all required topics."""
         return self.current_topic_index >= len(self.topics_to_cover)
     
-    async def conduct_discovery_conversation(self, conversation_state: Dict[str, Any]) -> Dict[str, Any]:
+    def conduct_discovery_conversation(self, conversation_state: Dict[str, Any]) -> Dict[str, Any]:
         """Conduct a complete discovery conversation to understand the business problem.
         
         Args:
@@ -57,7 +57,7 @@ class CoachAgent(BaseAgent):
             Dict[str, Any]: Results of the discovery conversation
         """
         # Initialize conversation with the query
-        initial_response = await self.start_coaching(conversation_state["query"])
+        initial_response = self.start_coaching(conversation_state["query"])
         
         # Simulate the conversation using the context
         context = conversation_state["context"]
@@ -71,10 +71,10 @@ class CoachAgent(BaseAgent):
         
         # Process each simulated response
         for response in simulated_responses:
-            await self.continue_coaching(response)
+            self.continue_coaching(response)
         
         # Generate problem summary
-        summary = await self.prepare_routing_summary()
+        summary = self.prepare_routing_summary()
         
         # Structure the conversation results
         conversation_results = {
@@ -94,7 +94,7 @@ class CoachAgent(BaseAgent):
         
         return conversation_results
     
-    async def start_coaching(self, initial_problem: str) -> str:
+    def start_coaching(self, initial_problem: str) -> str:
         """
         Start the coaching process with an initial problem description
         """
@@ -110,7 +110,7 @@ class CoachAgent(BaseAgent):
         Make your question clear and specific, focusing on understanding the core issue.
         """
         
-        response = await self.process_message(prompt, None)
+        response = self.process_message(prompt, None)
         
         # Add to conversation history with metadata
         self.conversation_history.append({
@@ -124,16 +124,17 @@ class CoachAgent(BaseAgent):
         
         return response["content"]
     
-    async def continue_coaching(self, user_response: str) -> str:
+    def continue_coaching(self, user_response: str) -> str:
         """
         Continue the coaching process with the user's response
         """
         # Add user response to history with metadata
+        current_topic = self.topics_to_cover[min(self.current_topic_index, len(self.topics_to_cover) - 1)]
         self.conversation_history.append({
             "role": "user",
             "content": user_response,
             "metadata": {
-                "topic": self.topics_to_cover[self.current_topic_index],
+                "topic": current_topic,
                 "type": "response"
             }
         })
@@ -152,29 +153,30 @@ class CoachAgent(BaseAgent):
             """
         else:
             # Ask the next question
+            next_topic = self.topics_to_cover[min(self.current_topic_index, len(self.topics_to_cover) - 1)]
             prompt = f"""
             Based on the conversation history:
             {self.conversation_history}
             
-            Please ask ONE focused question about {self.topics_to_cover[self.current_topic_index]}.
+            Please ask ONE focused question about {next_topic}.
             Make your question clear and specific.
             """
         
-        response = await self.process_message(prompt, None)
+        response = self.process_message(prompt, None)
         
         # Add to conversation history with metadata
         self.conversation_history.append({
             "role": "assistant",
             "content": response["content"],
             "metadata": {
-                "topic": self.topics_to_cover[self.current_topic_index],
+                "topic": current_topic,
                 "type": "question" if not self.is_conversation_complete() else "summary"
             }
         })
         
         return response["content"]
     
-    async def prepare_routing_summary(self) -> Dict[str, Any]:
+    def prepare_routing_summary(self) -> Dict[str, Any]:
         """
         Prepare a structured summary of the problem for the routing agent
         """
@@ -193,7 +195,7 @@ class CoachAgent(BaseAgent):
         Format the summary as a JSON object with these fields.
         """
         
-        response = await self.process_message(prompt, None)
+        response = self.process_message(prompt, None)
         
         try:
             # Try to parse the response as JSON

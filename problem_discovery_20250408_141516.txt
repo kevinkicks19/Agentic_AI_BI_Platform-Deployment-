@@ -1,0 +1,17 @@
+=== Problem Discovery Report ===
+
+Generated: 20250408_141516
+
+=== Problem Summary ===
+{'problem_statement': 'Error processing message: 404 page not found', 'raw_conversation': [{'role': 'assistant', 'content': 'Error processing message: 404 page not found', 'metadata': {'topic': 'specific_challenge', 'type': 'question'}}, {'role': 'user', 'content': 'specific_challenge', 'metadata': {'topic': 'specific_challenge', 'type': 'response'}}, {'role': 'assistant', 'content': 'Error processing message: 404 page not found', 'metadata': {'topic': 'context_background', 'type': 'question'}}, {'role': 'user', 'content': 'context_background', 'metadata': {'topic': 'context_background', 'type': 'response'}}, {'role': 'assistant', 'content': 'Error processing message: 404 page not found', 'metadata': {'topic': 'goals_outcomes', 'type': 'question'}}, {'role': 'user', 'content': 'goals_outcomes', 'metadata': {'topic': 'goals_outcomes', 'type': 'response'}}, {'role': 'assistant', 'content': 'Error processing message: 404 page not found', 'metadata': {'topic': 'constraints_limitations', 'type': 'question'}}, {'role': 'user', 'content': 'constraints_limitations', 'metadata': {'topic': 'constraints_limitations', 'type': 'response'}}, {'role': 'assistant', 'content': 'Error processing message: 404 page not found', 'metadata': {'topic': 'stakeholders', 'type': 'question'}}, {'role': 'user', 'content': 'stakeholders', 'metadata': {'topic': 'stakeholders', 'type': 'response'}}, {'role': 'assistant', 'content': 'Error processing message: 404 page not found', 'metadata': {'topic': 'urgency_timeline', 'type': 'question'}}, {'role': 'user', 'content': 'urgency_timeline', 'metadata': {'topic': 'urgency_timeline', 'type': 'response'}}, {'role': 'assistant', 'content': 'Error processing message: 404 page not found', 'metadata': {'topic': 'requirements', 'type': 'question'}}, {'role': 'user', 'content': 'requirements', 'metadata': {'topic': 'requirements', 'type': 'response'}}, {'role': 'assistant', 'content': 'Error processing message: 404 page not found', 'metadata': {'topic': 'requirements', 'type': 'summary'}}]}
+
+=== Solution Plan ===
+{'status': 'error', 'content': 'Error processing message: 404 page not found', 'role': 'system', 'metadata': {'error': '404 page not found'}}
+
+=== Conversation Summary ===
+Conversation failed to complete
+
+=== Metadata ===
+workflow_version: 1.0
+agents_used: ['CoachAgent', 'RouterAgent']
+conversation_turns: 7
