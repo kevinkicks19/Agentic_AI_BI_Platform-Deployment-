@@ -28,7 +28,7 @@ function App() {
         </header>
         <main>
           {!activeHandoff ? (
-            <Chat onHandoffStart={handleHandoffStart} />
+            <Chat onHandoffStart={handleHandoffStart} agentType="coordinator" sessionId="main-session" />
           ) : (
             <WorkflowChat handoffData={activeHandoff} onHandoffEnd={handleHandoffEnd} />
           )}

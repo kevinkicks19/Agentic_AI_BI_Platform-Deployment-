@@ -15,7 +15,7 @@ const PersonaSelector: React.FC = () => {
   const [persona, setPersona] = useState<string>(PERSONAS[0]);
 
   const handleChange = (
-    event: React.MouseEvent<HTMLElement>,
+    _event: React.MouseEvent<HTMLElement>,
     newPersona: string | null
   ) => {
     if (newPersona !== null) {

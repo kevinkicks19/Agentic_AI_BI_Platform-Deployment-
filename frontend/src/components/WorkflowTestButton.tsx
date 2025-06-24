@@ -20,7 +20,7 @@ const WorkflowTestButton: React.FC = () => {
     <>
       <button onClick={handleTestWorkflow}>Test Workflow</button>
       {showChat && sessionId && (
-        <Chat agentType="n8n" sessionId={sessionId} />
+        <Chat agentType="n8n" sessionId={sessionId} onHandoffStart={() => {}} />
       )}
     </>
   );

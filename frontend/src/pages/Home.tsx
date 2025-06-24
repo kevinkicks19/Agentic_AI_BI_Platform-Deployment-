@@ -8,7 +8,7 @@ const Home: React.FC = () => {
     <>
       <h1>Welcome to the Home Page</h1>
       <PersonaSelector />
-      <Chat />
+      <Chat onHandoffStart={() => {}} agentType="coordinator" sessionId="main-session" />
       <FileUpload />
     </>
   );
