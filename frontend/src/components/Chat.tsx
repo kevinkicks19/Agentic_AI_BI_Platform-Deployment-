@@ -20,6 +20,8 @@ interface ChatProps {
   sessionId: string;
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+
 const Chat: React.FC<ChatProps> = ({ onHandoffStart, agentType, sessionId }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -41,7 +43,7 @@ const Chat: React.FC<ChatProps> = ({ onHandoffStart, agentType, sessionId }) => 
         const response = await chatWithN8nAgent(sessionId, messageContent);
         reply = response.reply;
       } else {
-        const response = await fetch('/api/chat', {
+        const response = await fetch(`${API_BASE_URL}/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: messageContent }),

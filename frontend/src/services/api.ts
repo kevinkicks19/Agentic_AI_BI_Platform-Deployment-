@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api',
+  baseURL: API_BASE_URL,
 });
 
 export const uploadFile = (file: File) => {
@@ -15,7 +17,7 @@ export const uploadFile = (file: File) => {
 export default api;
 
 export async function triggerWorkflow(data: any) {
-  const res = await fetch('/api/workflow/test', {
+  const res = await fetch(`${API_BASE_URL}/workflow/test`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -24,7 +26,7 @@ export async function triggerWorkflow(data: any) {
 }
 
 export async function chatWithN8nAgent(sessionId: string, message: string) {
-  const res = await fetch('/api/chat/n8n', {
+  const res = await fetch(`${API_BASE_URL}/chat/n8n`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ sessionId, message })
